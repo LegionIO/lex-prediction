@@ -65,11 +65,10 @@ module Legion
 
           def estimate_confidence(mode, context)
             base = case mode
-                   when :fault_localization  then 0.7
-                   when :functional_mapping  then 0.6
-                   when :boundary_testing    then 0.5
-                   when :counterfactual      then 0.4
-                   else 0.5
+                   when :fault_localization then 0.7
+                   when :functional_mapping then 0.6
+                   when :counterfactual     then 0.4
+                   else                          0.5
                    end
             # Context richness boosts confidence
             richness_bonus = [context.size * 0.02, 0.2].min
