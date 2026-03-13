@@ -11,9 +11,7 @@ module Legion
                                                       Legion::Extensions::Helpers.const_defined?(:Lex)
 
           def predict(mode:, context: {}, confidence: nil, description: nil, **)
-            unless Helpers::Modes.valid_mode?(mode)
-              return { error: :invalid_mode, valid_modes: Helpers::Modes::REASONING_MODES }
-            end
+            return { error: :invalid_mode, valid_modes: Helpers::Modes::REASONING_MODES } unless Helpers::Modes.valid_mode?(mode)
 
             prediction = {
               prediction_id: SecureRandom.uuid,
