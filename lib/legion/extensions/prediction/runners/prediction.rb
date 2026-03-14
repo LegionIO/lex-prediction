@@ -26,30 +26,40 @@ module Legion
 
             prediction_store.store(prediction)
 
+            actionable = prediction[:confidence] >= Helpers::Modes::PREDICTION_CONFIDENCE_MIN
+            Legion::Logging.debug "[prediction] new: mode=#{mode} confidence=#{prediction[:confidence].round(2)} " \
+                                  "actionable=#{actionable} id=#{prediction[:prediction_id][0..7]}"
+
             {
               prediction_id: prediction[:prediction_id],
               mode:          mode,
               confidence:    prediction[:confidence],
-              actionable:    prediction[:confidence] >= Helpers::Modes::PREDICTION_CONFIDENCE_MIN
+              actionable:    actionable
             }
           end
 
           def resolve_prediction(prediction_id:, outcome:, actual: nil, **)
             pred = prediction_store.resolve(prediction_id, outcome: outcome, actual: actual)
             if pred
+              Legion::Logging.info "[prediction] resolved #{prediction_id[0..7]} outcome=#{outcome}"
               { resolved: true, prediction_id: prediction_id, outcome: outcome }
             else
+              Legion::Logging.debug "[prediction] resolve failed: #{prediction_id[0..7]} not found"
               { resolved: false, reason: :not_found }
             end
           end
 
           def pending_predictions(**)
             preds = prediction_store.pending
+            Legion::Logging.debug "[prediction] pending count=#{preds.size}"
             { predictions: preds, count: preds.size }
           end
 
           def prediction_accuracy(window: 100, **)
-            { accuracy: prediction_store.accuracy(window: window), total_outcomes: prediction_store.outcomes.size }
+            acc = prediction_store.accuracy(window: window)
+            total = prediction_store.outcomes.size
+            Legion::Logging.debug "[prediction] accuracy=#{acc.round(2)} total_outcomes=#{total}"
+            { accuracy: acc, total_outcomes: total }
           end
 
           def get_prediction(prediction_id:, **)
@@ -70,7 +80,6 @@ module Legion
                    when :counterfactual     then 0.4
                    else                          0.5
                    end
-            # Context richness boosts confidence
             richness_bonus = [context.size * 0.02, 0.2].min
             [base + richness_bonus, 1.0].min
           end
