@@ -42,6 +42,7 @@ module Legion
             pred = prediction_store.resolve(prediction_id, outcome: outcome, actual: actual)
             if pred
               Legion::Logging.info "[prediction] resolved #{prediction_id[0..7]} outcome=#{outcome}"
+              record_outcome_trace(pred, outcome)
               { resolved: true, prediction_id: prediction_id, outcome: outcome }
             else
               Legion::Logging.debug "[prediction] resolve failed: #{prediction_id[0..7]} not found"
@@ -82,6 +83,40 @@ module Legion
                    end
             richness_bonus = [context.size * 0.02, 0.2].min
             [base + richness_bonus, 1.0].min
+          end
+
+          def record_outcome_trace(prediction, outcome)
+            return unless defined?(Legion::Extensions::Memory::Runners::Traces)
+
+            trace_params = case outcome
+                           when :correct
+                             { type: :semantic, valence: 0.3, intensity: 0.3, unresolved: false }
+                           when :incorrect
+                             { type: :episodic, valence: -0.5, intensity: 0.6, unresolved: true }
+                           when :partial
+                             { type: :episodic, valence: -0.2, intensity: 0.4, unresolved: true }
+                           else
+                             return
+                           end
+
+            runner = Object.new.extend(Legion::Extensions::Memory::Runners::Traces)
+            runner.store_trace(
+              type:                trace_params[:type],
+              content_payload:     "prediction #{outcome}: mode=#{prediction[:mode]} confidence=#{prediction[:confidence]}",
+              domain_tags:         ['prediction', prediction[:mode].to_s],
+              origin:              :direct_experience,
+              emotional_valence:   trace_params[:valence],
+              emotional_intensity: trace_params[:intensity],
+              unresolved:          trace_params[:unresolved],
+              confidence:          prediction[:confidence]
+            )
+
+            store = runner.send(:default_store)
+            store.flush if store.respond_to?(:flush)
+
+            Legion::Logging.debug "[prediction] created #{trace_params[:type]} trace for #{outcome} prediction"
+          rescue StandardError => e
+            Legion::Logging.warn "[prediction] failed to create outcome trace: #{e.message}"
           end
         end
       end
