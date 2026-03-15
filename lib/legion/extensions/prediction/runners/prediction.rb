@@ -63,6 +63,23 @@ module Legion
             { accuracy: acc, total_outcomes: total }
           end
 
+          def expire_stale_predictions(**)
+            expired_count = 0
+
+            prediction_store.pending.each do |pred|
+              age = Time.now.utc - pred[:created_at]
+              next unless age > pred[:horizon]
+
+              prediction_store.resolve(pred[:prediction_id], outcome: :expired, actual: nil)
+              expired_count += 1
+            end
+
+            remaining = prediction_store.pending.size
+            Legion::Logging.debug "[prediction] expire sweep: expired=#{expired_count} remaining=#{remaining}"
+
+            { expired_count: expired_count, remaining_pending: remaining }
+          end
+
           def get_prediction(prediction_id:, **)
             pred = prediction_store.get(prediction_id)
             pred ? { found: true, prediction: pred } : { found: false }
