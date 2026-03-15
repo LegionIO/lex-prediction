@@ -68,6 +68,12 @@ Legion::Extensions::Prediction::Runners::Prediction.prediction_accuracy(window: 
 Legion::Extensions::Prediction::Runners::Prediction.get_prediction(prediction_id: "uuid")
 ```
 
+## Actors
+
+| Actor | Interval | Description |
+|-------|----------|-------------|
+| `ExpirePredictions` | Every 300s | Resolves pending predictions older than `PREDICTION_HORIZON` (3600s) as `:expired`, enforcing the horizon constant |
+
 ## Development
 
 ```bash
