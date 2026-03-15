@@ -25,7 +25,9 @@ lib/legion/extensions/prediction/
     modes.rb             # REASONING_MODES, PREDICTION_CONFIDENCE_MIN, MAX_PREDICTIONS_PER_TICK, PREDICTION_HORIZON
     prediction_store.rb  # PredictionStore class - pending/resolved predictions, accuracy computation
   runners/
-    prediction.rb        # predict, resolve_prediction, pending_predictions, prediction_accuracy, get_prediction
+    prediction.rb        # predict, resolve_prediction, pending_predictions, prediction_accuracy, get_prediction, expire_stale_predictions
+  actors/
+    expire_predictions.rb  # ExpirePredictions - Every 300s, resolves predictions past PREDICTION_HORIZON as :expired
 spec/
   legion/extensions/prediction/
     runners/
@@ -66,6 +68,16 @@ Prediction hash structure:
 
 `accuracy(window:)` computes fraction of `:correct` outcomes in the last N resolved predictions.
 
+## Actors
+
+| Actor | Interval | Runner | Method | Purpose |
+|---|---|---|---|---|
+| `ExpirePredictions` | Every 300s | `Runners::Prediction` | `expire_stale_predictions` | Resolves predictions past PREDICTION_HORIZON as :expired |
+
+### ExpirePredictions
+
+Every 5 minutes, iterates over all pending predictions and resolves any whose age (`Time.now.utc - created_at`) exceeds their `horizon` value. Expired predictions are passed to `prediction_store.resolve(id, outcome: :expired)`. Note: `:expired` outcomes are not stored as memory traces (only `:correct`, `:incorrect`, and `:partial` outcomes trigger `record_outcome_trace`). Returns `{ expired_count: Integer, remaining_pending: Integer }`.
+
 ## Confidence Estimation
 
 `estimate_confidence(mode, context)` computes base confidence per mode, then adds `[context.size * 0.02, 0.2].min` richness bonus. Context richness is a proxy for how much information the agent has to reason with.
@@ -79,5 +91,6 @@ Prediction hash structure:
 ## Development Notes
 
 - `MAX_PREDICTIONS_PER_TICK = 5` is defined as a constant but not enforced by the runner (enforcement is the caller's responsibility)
-- `PREDICTION_HORIZON` is stored on the prediction but not actively used for expiration in the current implementation
+- `PREDICTION_HORIZON` is now enforced by the `ExpirePredictions` actor — the note that it was "not actively used" is superseded
 - `prediction_accuracy` returns 0.0 if no outcomes have been resolved yet
+- `expire_stale_predictions` iterates over a snapshot of `prediction_store.pending` before resolving; each resolution removes from pending, so the `remaining` count at the end reflects post-expiry state
