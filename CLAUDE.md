@@ -11,7 +11,7 @@ Forward-model prediction engine for the LegionIO cognitive architecture. Impleme
 ## Gem Info
 
 - **Gem name**: `lex-prediction`
-- **Version**: `0.1.0`
+- **Version**: `0.1.1`
 - **Module**: `Legion::Extensions::Prediction`
 - **Ruby**: `>= 3.4`
 - **License**: MIT
